@@ -10,7 +10,7 @@
     - command: mkdir -p /opt/raspberrypi creates=/opt/raspberrypi
 
     - apt: name=nfs-kernel-server
-    - lineinfile: dest=/etc/exports line="/opt/raspberrypi/root 10.0.0.0/24(rw,sync,no_root_squash,no_subtree_check)"
+    - lineinfile: dest=/etc/exports line="/opt/raspberrypi/root 10.0.1.0/24(rw,sync,no_root_squash,no_subtree_check)"
 
     - service: name=nfs-kernel-server state=restarted
 
@@ -31,7 +31,7 @@
 
     # the pi is unbootable unless it is told not to mount the root filesystem from the card!
     - lineinfile: dest=/opt/raspberrypi/root/etc/fstab regexp="^\/dev\/mmcblk0p2" state="absent"
-    - replace: dest=/opt/raspberrypi/boot/cmdline.txt regexp="rootwait$" replace="rootwait ip=10.0.0.101:10.0.0.1:10.0.0.1:255.255.255.0:rpi:eth0:off root=/dev/nfs rootfstype=nfs nfsroot=10.0.0.1:/opt/raspberrypi/root,udp,vers=3 smsc95xx.turbo_mode=N" backup=no
+    - replace: dest=/opt/raspberrypi/boot/cmdline.txt regexp="rootwait$" replace="rootwait ip=10.0.1.101:10.0.1.10:10.0.1.10:255.255.255.0:rpi:eth0:off root=/dev/nfs rootfstype=nfs nfsroot=10.0.1.10:/opt/raspberrypi/root,udp,vers=3 smsc95xx.turbo_mode=N" backup=no
 
     # build helpies
     - lineinfile: dest="/home/vagrant/.bashrc" line="export RPI_TOOLS=/opt/raspberrypi/tools-master"

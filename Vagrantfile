@@ -7,7 +7,7 @@ VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "ubuntu/precise32"
 
-  config.vm.network "public_network", bridge: 'en5: Thunderbolt Ethernet', ip: "10.0.0.1"
+  config.vm.network "public_network", bridge: 'en5: Thunderbolt Ethernet', ip: "10.0.1.10"
   #config.vm.network "private_network", type: "dhcp"
   #if Vagrant.has_plugin?("vagrant-cachier")
   #  config.cache.scope = :box
