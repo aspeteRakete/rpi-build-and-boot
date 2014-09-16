@@ -3,8 +3,8 @@
   remote_user: vagrant
   sudo: yes
   vars:
-    offset_boot: 4194304
-    offset_root: 62914560
+    offset_boot: 1048576
+    offset_root: 95420416
   tasks:
     - apt: upgrade=dist
     - command: mkdir -p /opt/raspberrypi creates=/opt/raspberrypi
@@ -18,6 +18,7 @@
     - apt: name=pkg-config
     - apt: name=git
     - apt: name=python-pip
+    - apt: name=kpartx
 
 
     - apt: name=unzip
@@ -25,9 +26,13 @@
 
     - file: path=/opt/raspberrypi/boot state=directory
     - file: path=/opt/raspberrypi/root state=directory
+    
+    - command: kpartx -v -a /vagrant/image.img
+    - mount: src="/dev/mapper/loop0p1" name="/opt/raspberrypi/boot" fstype="auto" state="mounted"
+    - mount: src="/dev/mapper/loop0p5" name="/opt/raspberrypi/root" fstype="auto" state="mounted"
 
-    - mount: src="/vagrant/image.img" name="/opt/raspberrypi/boot" fstype="auto"  opts="loop,offset={{offset_boot}},noauto" state="mounted"
-    - mount: src="/vagrant/image.img" name="/opt/raspberrypi/root" fstype="auto"  opts="loop,offset={{offset_root}},noauto" state="mounted"
+    #- mount: src="/vagrant/image.img" name="/opt/raspberrypi/boot" fstype="auto"  opts="loop,offset={{offset_boot}},noauto" state="mounted"
+    #- mount: src="/vagrant/image.img" name="/opt/raspberrypi/root" fstype="auto"  opts="loop,offset={{offset_root}},noauto" state="mounted"
 
     # the pi is unbootable unless it is told not to mount the root filesystem from the card!
     - lineinfile: dest=/opt/raspberrypi/root/etc/fstab regexp="^\/dev\/mmcblk0p2" state="absent"
