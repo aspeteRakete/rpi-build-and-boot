@@ -48,10 +48,10 @@
     # build helpies
     - lineinfile: dest="/home/vagrant/.bashrc" line="export RPI_TOOLS=/opt/raspberrypi/tools-master"
     - lineinfile: dest="/home/vagrant/.bashrc" line="export RPI_ROOT=/opt/raspberrypi/root"
-    - lineinfile: dest="/home/vagrant/.bashrc" line="export PKG_CONFIG_PATH=$RPI_ROOT/usr/lib/arm-linux-gnueabihf/pkgconfig:$RPI_ROOT/usr/share/pkgconfig:$RPI_ROOT/usr/lib/pkgconfig"
+    - lineinfile: dest="/home/vagrant/.bashrc" line="export PKG_CONFIG_PATH=$RPI_ROOT/usr/lib/pkgconfig"
     - lineinfile: dest="/home/vagrant/.bashrc" line="alias rmake='make RPI_TOOLS=$RPI_TOOLS RPI_ROOT=$RPI_ROOT GST_VERSION=1.0 PLATFORM_OS=Linux PLATFORM_ARCH=armv6l'"
 
-    - command: /vagrant/fixQualifiedLibraryPaths.sh /opt/raspberrypi/root /opt/raspberrypi/tools-master/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian/bin/arm-linux-gnueabihf-g++
+    #- command: /vagrant/fixQualifiedLibraryPaths.sh /opt/raspberrypi/root /opt/raspberrypi/tools-master/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian/bin/arm-linux-gnueabihf-g++
 
     - apt: name=python-dev
     - pip: name=ansible
