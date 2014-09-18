@@ -1,0 +1,14 @@
+Description='A basic dhcp ethernet connection'
+Interface=eth0
+Connection=ethernet
+IP=static
+IPCustom=('addr add dev eth0 10.0.1.101/24 brd +' route add default via 10.0.1.10')
+#Address=('10.0.1.101/24' '10.0.1.102/24')
+#Gateway='10.0.1.10'
+#DNS=('8.8.8.8')
+#ExecUpPost='/usr/bin/ntpd -gq || true'
+
+## for DHCPv6
+#IP6=dhcp
+## for IPv6 autoconfiguration
+#IP6=stateless

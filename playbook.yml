@@ -42,6 +42,8 @@
     # the pi is unbootable unless it is told not to mount the root filesystem from the card!
     - lineinfile: dest=/opt/raspberrypi/root/etc/fstab regexp="^\/dev\/mmcblk0p2" state="absent"
     - replace: dest=/opt/raspberrypi/boot/cmdline.txt regexp="rootwait$" replace="rootwait ip={{ rpi_IP }}:{{ nfs_server_IP }}:{ nfs_server_IP }}:{{ netmask }}:rpi:eth0:off root=/dev/nfs rootfstype=nfs nfsroot={{ nfs_server_IP }}:/opt/raspberrypi/root,udp,vers=3 smsc95xx.turbo_mode=N" backup=no
+    # copy eth0 configuration, TODO: change the ip,gateway to vars defined here
+    - copy: src=/vagrant/eth0 dest=/opt/raspberrypi/root/etc/netctl/
 
     # build helpies
     - lineinfile: dest="/home/vagrant/.bashrc" line="export RPI_TOOLS=/opt/raspberrypi/tools-master"
