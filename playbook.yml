@@ -3,6 +3,10 @@
   remote_user: vagrant
   sudo: yes
   vars:
+    rpi_IP : 10.0.1.101
+    nfs_server_IP: 10.0.1.10
+    subnet: 10.0.1.0/24
+    netmask: 255.255.255.0
     offset_boot: 1048576
     offset_root: 95420416
   tasks:
@@ -10,7 +14,7 @@
     - command: mkdir -p /opt/raspberrypi creates=/opt/raspberrypi
 
     - apt: name=nfs-kernel-server
-    - lineinfile: dest=/etc/exports line="/opt/raspberrypi/root 10.0.1.0/24(rw,sync,no_root_squash,no_subtree_check)"
+    - lineinfile: dest=/etc/exports line="/opt/raspberrypi/root {{ subnet }}(rw,sync,no_root_squash,no_subtree_check)"
 
     - service: name=nfs-kernel-server state=restarted
 
@@ -27,16 +31,17 @@
     - file: path=/opt/raspberrypi/boot state=directory
     - file: path=/opt/raspberrypi/root state=directory
     
+    # Mount Image
     - command: kpartx -v -a /vagrant/image.img
-    - mount: src="/dev/mapper/loop0p1" name="/opt/raspberrypi/boot" fstype="auto" state="mounted"
-    - mount: src="/dev/mapper/loop0p5" name="/opt/raspberrypi/root" fstype="auto" state="mounted"
+    - mount: src="/dev/mapper/loop0p1" name="/opt/raspberrypi/boot" fstype="auto" opts="loop,noauto" state="mounted"
+    - mount: src="/dev/mapper/loop0p5" name="/opt/raspberrypi/root" fstype="auto" opts="loop,noauto" state="mounted"
 
     #- mount: src="/vagrant/image.img" name="/opt/raspberrypi/boot" fstype="auto"  opts="loop,offset={{offset_boot}},noauto" state="mounted"
     #- mount: src="/vagrant/image.img" name="/opt/raspberrypi/root" fstype="auto"  opts="loop,offset={{offset_root}},noauto" state="mounted"
 
     # the pi is unbootable unless it is told not to mount the root filesystem from the card!
     - lineinfile: dest=/opt/raspberrypi/root/etc/fstab regexp="^\/dev\/mmcblk0p2" state="absent"
-    - replace: dest=/opt/raspberrypi/boot/cmdline.txt regexp="rootwait$" replace="rootwait ip=10.0.1.101:10.0.1.10:10.0.1.10:255.255.255.0:rpi:eth0:off root=/dev/nfs rootfstype=nfs nfsroot=10.0.1.10:/opt/raspberrypi/root,udp,vers=3 smsc95xx.turbo_mode=N" backup=no
+    - replace: dest=/opt/raspberrypi/boot/cmdline.txt regexp="rootwait$" replace="rootwait ip={{ rpi_IP }}:{{ nfs_server_IP }}:{ nfs_server_IP }}:{{ netmask }}:rpi:eth0:off root=/dev/nfs rootfstype=nfs nfsroot={{ nfs_server_IP }}:/opt/raspberrypi/root,udp,vers=3 smsc95xx.turbo_mode=N" backup=no
 
     # build helpies
     - lineinfile: dest="/home/vagrant/.bashrc" line="export RPI_TOOLS=/opt/raspberrypi/tools-master"
