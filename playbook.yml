@@ -7,8 +7,7 @@
     nfs_server_IP: 10.0.1.10
     subnet: 10.0.1.0/24
     netmask: 255.255.255.0
-    offset_boot: 1048576
-    offset_root: 95420416
+    of_version: 0.8.4
   tasks:
     - apt: upgrade=dist
     - command: mkdir -p /opt/raspberrypi creates=/opt/raspberrypi
@@ -62,10 +61,10 @@
     - pip: name=httplib2
 
 
-    - unarchive: src=of_v0.8.3_linuxarmv6l_release.tar.gz dest=/opt/raspberrypi/root/opt creates=/opt/raspberrypi/root/opt/of_v0.8.3_linuxarmv6l_release
-    - file: src=of_v0.8.3_linuxarmv6l_release dest=/opt/raspberrypi/root/opt/openframeworks state=link
+    - unarchive: src=of_v{{ of_version }}_linuxarmv6l_release.tar.gz dest=/opt/raspberrypi/root/opt creates=/opt/raspberrypi/root/opt/of_v{{ of_version }}_linuxarmv6l_release
+    - file: src=of_v{{ of_version }}_linuxarmv6l_release dest=/opt/raspberrypi/root/opt/openframeworks state=link
     - file: src=/opt/raspberrypi/root/opt/openframeworks dest=/opt/openframeworks state=link
-    - command: chown -R vagrant /opt/raspberrypi/root/opt/of_v0.8.3_linuxarmv6l_release
+    - command: chown -R vagrant /opt/raspberrypi/root/opt/of_v{{ of_version }}_linuxarmv6l_release
 
     - apt: name=tinyproxy
     - lineinfile: dest="/etc/tinyproxy.conf" line="Allow 10.0.0.0/8"
