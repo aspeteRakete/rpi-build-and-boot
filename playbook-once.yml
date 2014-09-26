@@ -1,0 +1,74 @@
+---
+- hosts: all
+  remote_user: vagrant
+  sudo: yes
+  vars:
+    rpi_IP : 10.0.1.101
+    nfs_server_IP: 10.0.1.10
+    subnet: 10.0.1.0/24
+    netmask: 255.255.255.0
+    of_version: 0.8.4
+  tasks:
+    - apt: upgrade=dist
+    - command: mkdir -p /opt/raspberrypi creates=/opt/raspberrypi
+
+    - apt: name=nfs-kernel-server
+    - lineinfile: dest=/etc/exports line="/opt/raspberrypi/root {{ subnet }}(rw,sync,no_root_squash,no_subtree_check)"
+
+    - service: name=nfs-kernel-server state=restarted
+
+    - apt: name=build-essential
+    - apt: name=pkg-config
+    - apt: name=git
+    - apt: name=python-pip
+    - apt: name=kpartx
+
+
+    - apt: name=unzip
+    - unarchive: src=tools-master.zip dest=/opt/raspberrypi creates=/opt/raspberrypi/tools-master
+
+    - file: path=/opt/raspberrypi/boot state=directory
+    - file: path=/opt/raspberrypi/root state=directory
+    
+    # Mount Image
+    - command: kpartx -v -a /vagrant/image.img
+    - mount: src="/dev/mapper/loop0p1" name="/opt/raspberrypi/boot" fstype="auto" opts="loop,noauto" state="mounted"
+    - mount: src="/dev/mapper/loop0p5" name="/opt/raspberrypi/root" fstype="auto" opts="loop,noauto" state="mounted"
+
+    ### Raspberry Filesystem Operations
+    # the pi is unbootable unless it is told not to mount the root filesystem from the card!
+    - replace: dest=/opt/raspberrypi/boot/cmdline.txt regexp="rootwait$" replace="rootwait ip={{ rpi_IP }}:{{ nfs_server_IP }}:{ nfs_server_IP }}:{{ netmask }}:rpi:eth0:off root=/dev/nfs rootfstype=nfs nfsroot={{ nfs_server_IP }}:/opt/raspberrypi/root,udp,vers=3 smsc95xx.turbo_mode=N" backup=no
+    
+    # Enable Camera Module
+    - lineinfile: dest="/opt/raspberrypi/boot/config.txt" line="start_file=start_x.elf"
+    - lineinfile: dest="/opt/raspberrypi/boot/config.txt" line="fixup_file=fixup_x.dat"
+
+    # copy eth0 configuration, TODO: change the ip,gateway to vars defined here
+    #- copy: src="/vagrant/eth0" dest="/opt/raspberrypi/root/etc/netctl/"
+
+    # build helpies
+    - lineinfile: dest="/home/vagrant/.bashrc" line="export RPI_TOOLS=/opt/raspberrypi/tools-master"
+    - lineinfile: dest="/home/vagrant/.bashrc" line="export RPI_ROOT=/opt/raspberrypi/root"
+    - lineinfile: dest="/home/vagrant/.bashrc" line="export PKG_CONFIG_PATH=$RPI_ROOT/usr/lib/pkgconfig"
+    - lineinfile: dest="/home/vagrant/.bashrc" line="alias rmake='make RPI_TOOLS=$RPI_TOOLS RPI_ROOT=$RPI_ROOT GST_VERSION=1.0 PLATFORM_OS=Linux PLATFORM_ARCH=armv6l'"
+
+    - apt: name=python-dev
+    - pip: name=ansible
+    - apt: name=sshpass
+    - pip: name=paramiko
+    - pip: name=PyYAML
+    - pip: name=jinja2
+    - pip: name=httplib2
+
+
+    - unarchive: src=of_v{{ of_version }}_linuxarmv6l_release.tar.gz dest=/opt/raspberrypi/root/opt creates=/opt/raspberrypi/root/opt/of_v{{ of_version }}_linuxarmv6l_release
+    - file: src=of_v{{ of_version }}_linuxarmv6l_release dest=/opt/raspberrypi/root/opt/openframeworks state=link
+    - file: src=/opt/raspberrypi/root/opt/openframeworks dest=/opt/openframeworks state=link
+    - command: chown -R vagrant /opt/raspberrypi/root/opt/of_v{{ of_version }}_linuxarmv6l_release
+
+    - apt: name=tinyproxy
+    - lineinfile: dest="/etc/tinyproxy.conf" line="Allow 10.0.1.0/24"
+    - service: name=tinyproxy state=restarted
+
+  handlers:
+

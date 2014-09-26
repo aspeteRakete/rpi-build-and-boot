@@ -1,0 +1,21 @@
+---
+- hosts: all
+  remote_user: vagrant
+  sudo: yes
+  vars:
+    rpi_IP : 10.0.1.101
+    nfs_server_IP: 10.0.1.10
+    subnet: 10.0.1.0/24
+    netmask: 255.255.255.0
+    of_version: 0.8.4
+  tasks:
+    - apt: upgrade=dist
+    - service: name=nfs-kernel-server state=restarted
+    
+    # Mount Image
+    - command: kpartx -v -a /vagrant/image.img
+    - mount: src="/dev/mapper/loop0p1" name="/opt/raspberrypi/boot" fstype="auto" opts="loop,noauto" state="mounted"
+    - mount: src="/dev/mapper/loop0p2" name="/opt/raspberrypi/root" fstype="auto" opts="loop,noauto" state="mounted"
+
+  handlers:
+
