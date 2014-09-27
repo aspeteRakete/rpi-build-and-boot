@@ -17,5 +17,6 @@
     - mount: src="/dev/mapper/loop0p1" name="/opt/raspberrypi/boot" fstype="auto" opts="loop,noauto" state="mounted"
     - mount: src="/dev/mapper/loop0p2" name="/opt/raspberrypi/root" fstype="auto" opts="loop,noauto" state="mounted"
 
+
   handlers:
 
