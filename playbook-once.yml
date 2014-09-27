@@ -3,17 +3,21 @@
   remote_user: vagrant
   sudo: yes
   vars:
-    rpi_IP : 10.0.1.101
-    nfs_server_IP: 10.0.1.10
-    subnet: 10.0.1.0/24
-    netmask: 255.255.255.0
-    of_version: 0.8.4
+	rpi_IP : 10.0.1.101
+	rasp_rpi_ip: 10.0.1.101
+	arch_rpi_ip: 10.0.1.102
+	nfs_server_IP: 10.0.1.10
+	subnet: 10.0.1.0/24
+	netmask: 255.255.255.0
+	of_version: 0.8.4
   tasks:
     - apt: upgrade=dist
-    - command: mkdir -p /opt/raspberrypi creates=/opt/raspberrypi
+	- command: mkdir -p /opt/raspberrypi-arch creates=/opt/raspberrypi-arch
+	- command: mkdir -p /opt/raspberrypi-rasp creates=/opt/raspberrypi-rasp
 
     - apt: name=nfs-kernel-server
-    - lineinfile: dest=/etc/exports line="/opt/raspberrypi/root {{ subnet }}(rw,sync,no_root_squash,no_subtree_check)"
+    - lineinfile: dest=/etc/exports line="/opt/raspberrypi-arch/root {{ subnet }}(rw,sync,no_root_squash,no_subtree_check)"
+	- lineinfile: dest=/etc/exports line="/opt/raspberrypi-rasp/root {{ subnet }}(rw,sync,no_root_squash,no_subtree_check)"
 
     - service: name=nfs-kernel-server state=restarted
 
@@ -22,14 +26,18 @@
     - apt: name=git
     - apt: name=python-pip
     - apt: name=kpartx
-
-
     - apt: name=unzip
-    - unarchive: src=tools-master.zip dest=/opt/raspberrypi creates=/opt/raspberrypi/tools-master
+	- apt: name = xz
 
-    - file: path=/opt/raspberrypi/boot state=directory
-    - file: path=/opt/raspberrypi/root state=directory
-    
+#- unarchive: src=tools-master-arch.zip dest=/opt/raspberrypi-arch creates=/opt/raspberrypi/tools-master-arch
+#	- unarchive: src=tools-master-rasp.zip dest=/opt/raspberrypi-rasp creates=/opt/raspberrypi/tools-master-rasp
+
+    - file: path=/opt/raspberrypi-arch/boot state=directory
+    - file: path=/opt/raspberrypi-arch/root state=directory
+
+	- file: path=/opt/raspberrypi-rasp/boot state=directory
+	- file: path=/opt/raspberrypi-rasp/root state=directory
+
     # Mount Image
     - command: kpartx -v -a /vagrant/image.img
     - mount: src="/dev/mapper/loop0p1" name="/opt/raspberrypi/boot" fstype="auto" opts="loop,noauto" state="mounted"
@@ -37,20 +45,24 @@
 
     ### Raspberry Filesystem Operations
     # the pi is unbootable unless it is told not to mount the root filesystem from the card!
-    - replace: dest=/opt/raspberrypi/boot/cmdline.txt regexp="rootwait$" replace="rootwait ip={{ rpi_IP }}:{{ nfs_server_IP }}:{ nfs_server_IP }}:{{ netmask }}:rpi:eth0:off root=/dev/nfs rootfstype=nfs nfsroot={{ nfs_server_IP }}:/opt/raspberrypi/root,udp,vers=3 smsc95xx.turbo_mode=N" backup=no
+    - replace: dest=/opt/raspberrypi-rasp/boot/cmdline.txt regexp="rootwait$" replace="rootwait ip={{ rasp_rpi_ip }}:{{ nfs_server_IP }}:{ nfs_server_IP }}:{{ netmask }}:rpi:eth0:off root=/dev/nfs rootfstype=nfs nfsroot={{ nfs_server_IP }}:/opt/raspberrypi/root,udp,vers=3 smsc95xx.turbo_mode=N" backup=no
+	- replace: dest=/opt/raspberrypi-arch/boot/cmdline.txt regexp="rootwait$" replace="rootwait ip={{ arch_rpi_ip }}:{{ nfs_server_IP }}:{ nfs_server_IP }}:{{ netmask }}:rpi:eth0:off root=/dev/nfs rootfstype=nfs nfsroot={{ nfs_server_IP }}:/opt/raspberrypi/root,udp,vers=3 smsc95xx.turbo_mode=N" backup=no
     
-    # Enable Camera Module
-    - lineinfile: dest="/opt/raspberrypi/boot/config.txt" line="start_file=start_x.elf"
-    - lineinfile: dest="/opt/raspberrypi/boot/config.txt" line="fixup_file=fixup_x.dat"
+    # Enable Camera Module on arch
+    - lineinfile: dest="/opt/raspberrypi-arch/boot/config.txt" line="start_file=start_x.elf"
+    - lineinfile: dest="/opt/raspberrypi-arch/boot/config.txt" line="fixup_file=fixup_x.dat"
 
-    # copy eth0 configuration, TODO: change the ip,gateway to vars defined here
-    #- copy: src="/vagrant/eth0" dest="/opt/raspberrypi/root/etc/netctl/"
+    # TODO: change the ip for netctl in arch
+	#- copy: src="/vagrant/eth0" dest="/opt/raspberrypi/root/etc/netctl/"
 
     # build helpies
-    - lineinfile: dest="/home/vagrant/.bashrc" line="export RPI_TOOLS=/opt/raspberrypi/tools-master"
-    - lineinfile: dest="/home/vagrant/.bashrc" line="export RPI_ROOT=/opt/raspberrypi/root"
-    - lineinfile: dest="/home/vagrant/.bashrc" line="export PKG_CONFIG_PATH=$RPI_ROOT/usr/lib/pkgconfig"
-    - lineinfile: dest="/home/vagrant/.bashrc" line="alias rmake='make RPI_TOOLS=$RPI_TOOLS RPI_ROOT=$RPI_ROOT GST_VERSION=1.0 PLATFORM_OS=Linux PLATFORM_ARCH=armv6l'"
+    - lineinfile: dest="/home/vagrant/.bashrc" line="export ARCH_RPI_TOOLS=/opt/raspberrypi-arch/tools-master"
+    - lineinfile: dest="/home/vagrant/.bashrc" line="export ARCH_RPI_ROOT=/opt/raspberrypi/root"
+	- lineinfile: dest="/home/vagrant/.bashrc" line="alias arch-make='export PKG_CONFIG_PATH=$ARCH_RPI_ROOT/usr/lib/pkgconfig; make RPI_TOOLS=$ARCH_RPI_TOOLS RPI_ROOT=$ARCH_RPI_ROOT GST_VERSION=1.0 PLATFORM_OS=Linux PLATFORM_ARCH=armv6l'"
+
+	- lineinfile: dest="/home/vagrant/.bashrc" line="export RASP_RPI_TOOLS=/opt/raspberrypi/tools-master"
+	- lineinfile: dest="/home/vagrant/.bashrc" line="export RASP_RPI_ROOT=/opt/raspberrypi/root"
+	- lineinfile: dest="/home/vagrant/.bashrc" line="alias rasp-make='export PKG_CONFIG_PATH=$RASP_RPI_ROOT/usr/lib/arm-linux-gnueabihf/pkgconfig:$RASP_RPI_ROOT/usr/share/pkgconfig:$RASP_RPI_ROOT/usr/lib/pkgconfig; make RPI_TOOLS=$RASP_RPI_TOOLS RPI_ROOT=$RASP_RPI_ROOT GST_VERSION=1.0 PLATFORM_OS=Linux PLATFORM_ARCH=armv6l'"
 
     - apt: name=python-dev
     - pip: name=ansible
@@ -60,11 +72,23 @@
     - pip: name=jinja2
     - pip: name=httplib2
 
+#### Downloads
+## OF
+	- name : Download OF Master
+		get_url: url=https://github.com/openframeworks/openFrameworks/archive/master.zip dest=/opt/
+## Arch CC
+	- name : Download Archlinux Cross Compiler
+		get_url: url=http://archlinuxarm.org/builder/xtools/x-tools6h.tar.xz dest=/opt/raspberrypi-arch/
+	- unarchive: src=/opt/raspberrypi-arch/x-tools6h.tar.xz dest=/opt/raspberrypi-arch/ creates=/opt/raspberrypi-arch/tools-master
+## Raspbian CC
+	- name: Download Raspbian Cross Compiler
+		get_url: url=https://github.com/raspberrypi/tools/archive/master.zip dest=/opt/raspberrypi-rasp/
+	- unarchive: src=/opt/raspberrypi-rasp/master.zip dest=/opt/raspberrypi-arch/ creates=/opt/raspberrypi-rasp/tools-master
 
-    - unarchive: src=of_v{{ of_version }}_linuxarmv6l_release.tar.gz dest=/opt/raspberrypi/root/opt creates=/opt/raspberrypi/root/opt/of_v{{ of_version }}_linuxarmv6l_release
-    - file: src=of_v{{ of_version }}_linuxarmv6l_release dest=/opt/raspberrypi/root/opt/openframeworks state=link
-    - file: src=/opt/raspberrypi/root/opt/openframeworks dest=/opt/openframeworks state=link
-    - command: chown -R vagrant /opt/raspberrypi/root/opt/of_v{{ of_version }}_linuxarmv6l_release
+#- unarchive: src=of_v{{ of_version }}_linuxarmv6l_release.tar.gz dest=/opt/raspberrypi/root/opt creates=/opt/raspberrypi/root/opt/of_v{{ of_version }}_linuxarmv6l_release
+#  - file: src=of_v{{ of_version }}_linuxarmv6l_release dest=/opt/raspberrypi/root/opt/openframeworks state=link
+# - file: src=/opt/raspberrypi/root/opt/openframeworks dest=/opt/openframeworks state=link
+#- command: chown -R vagrant /opt/raspberrypi/root/opt/of_v{{ of_version }}_linuxarmv6l_release
 
     - apt: name=tinyproxy
     - lineinfile: dest="/etc/tinyproxy.conf" line="Allow 10.0.1.0/24"

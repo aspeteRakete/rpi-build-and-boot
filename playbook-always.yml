@@ -4,6 +4,8 @@
   sudo: yes
   vars:
     rpi_IP : 10.0.1.101
+	rasp_rpi_ip: 10.0.1.101
+	arch_rpi_ip: 10.0.1.102
     nfs_server_IP: 10.0.1.10
     subnet: 10.0.1.0/24
     netmask: 255.255.255.0
