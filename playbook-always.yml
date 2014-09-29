@@ -4,21 +4,29 @@
   sudo: yes
   vars:
     rpi_IP : 10.0.1.101
-	rasp_rpi_ip: 10.0.1.101
-	arch_rpi_ip: 10.0.1.102
+    rasp_rpi_ip: 10.0.1.101
+    arch_rpi_ip: 10.0.1.102
     nfs_server_IP: 10.0.1.10
     subnet: 10.0.1.0/24
     netmask: 255.255.255.0
     of_version: 0.8.4
   tasks:
-    - apt: upgrade=dist
-    - service: name=nfs-kernel-server state=restarted
-    
-    # Mount Image
-    - command: kpartx -v -a /vagrant/image.img
-    - mount: src="/dev/mapper/loop0p1" name="/opt/raspberrypi/boot" fstype="auto" opts="loop,noauto" state="mounted"
-    - mount: src="/dev/mapper/loop0p2" name="/opt/raspberrypi/root" fstype="auto" opts="loop,noauto" state="mounted"
+    - name: Update Distribution
+      apt: upgrade=dist
+    - name: restart nfs-server
+      service: name=nfs-kernel-server state=restarted
 
+    #Mount Arch
+    - name: Mount Arch Boot
+      shell: "bootpoint=$(sudo kpartx -v -a /vagrant/image-arch.img | awk '{print $3}' | sed -n 1p); sudo mount -t auto -o loop,noauto /dev/mapper/$bootpoint /opt/raspberrypi-arch/boot"
+    - name: Mount Arch Root
+      shell: "rootpoint=$(sudo kpartx -v -a /vagrant/image-arch.img | awk '{print $3}' | sed -n 2p); sudo mount -t auto -o loop,noauto /dev/mapper/$rootpoint /opt/raspberrypi-arch/root"
+
+    #Mount Raspbian
+    - name: Mount Rasp Boot
+      shell: "bootpoint=$(sudo kpartx -v -a /vagrant/image-rasp.img | awk '{print $3}' | sed -n 1p); sudo mount -t auto -o loop,noauto /dev/mapper/$bootpoint /opt/raspberrypi-rasp/boot"
+    - name: Mount Rasp Root
+      shell: "rootpoint=$(sudo kpartx -v -a /vagrant/image-rasp.img | awk '{print $3}' | sed -n 2p); sudo mount -t auto -o loop,noauto /dev/mapper/$rootpoint /opt/raspberrypi-rasp/root"
 
   handlers:
 
