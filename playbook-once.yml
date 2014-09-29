@@ -15,84 +15,98 @@
 	- command: mkdir -p /opt/raspberrypi-arch creates=/opt/raspberrypi-arch
 	- command: mkdir -p /opt/raspberrypi-rasp creates=/opt/raspberrypi-rasp
 
-    - apt: name=nfs-kernel-server
-    - lineinfile: dest=/etc/exports line="/opt/raspberrypi-arch/root {{ subnet }}(rw,sync,no_root_squash,no_subtree_check)"
-	- lineinfile: dest=/etc/exports line="/opt/raspberrypi-rasp/root {{ subnet }}(rw,sync,no_root_squash,no_subtree_check)"
+    - name : Install and Config NFS Server 
+        apt: name=nfs-kernel-server
+        lineinfile: dest=/etc/exports line="/opt/raspberrypi-arch/root {{ subnet }}(rw,sync,no_root_squash,no_subtree_check) "
+        lineinfile: dest=/etc/exports line="/opt/raspberrypi-rasp/root {{ subnet }}(rw,sync,no_root_squash,no_subtree_check)"
+        notify: restart nfs-server
 
-    - service: name=nfs-kernel-server state=restarted
+    - name: Install Essential Packages
+        apt: name=build-essential
+        apt: name=pkg-config
+        apt: name=git
+        apt: name=python-pip
+        apt: name=kpartx
+        apt: name=unzip
+        apt: name = xz
 
-    - apt: name=build-essential
-    - apt: name=pkg-config
-    - apt: name=git
-    - apt: name=python-pip
-    - apt: name=kpartx
-    - apt: name=unzip
-	- apt: name = xz
+    - name: Create ArchLinux Mount Points 
+        file: path=/opt/raspberrypi-arch/boot state=directory
+        file: path=/opt/raspberrypi-arch/root state=directory
 
-#- unarchive: src=tools-master-arch.zip dest=/opt/raspberrypi-arch creates=/opt/raspberrypi/tools-master-arch
-#	- unarchive: src=tools-master-rasp.zip dest=/opt/raspberrypi-rasp creates=/opt/raspberrypi/tools-master-rasp
+    - name: Create Raspbian Mount Points
+	   file: path=/opt/raspberrypi-rasp/boot state=directory
+	   file: path=/opt/raspberrypi-rasp/root state=directory
 
-    - file: path=/opt/raspberrypi-arch/boot state=directory
-    - file: path=/opt/raspberrypi-arch/root state=directory
+    # Mount Images
+	- name: Mount Arch Linux Arm Image
+		command: kpartx -v -a /vagrant/image-arch.img
+		mount: src="/dev/mapper/loop0p1" name="/opt/raspberrypi-arch/boot" fstype="auto" opts="loop,noauto" state="mounted"
+		mount: src="/dev/mapper/loop0p2" name="/opt/raspberrypi-arch/root" fstype="auto" opts="loop,noauto" state="mounted"
 
-	- file: path=/opt/raspberrypi-rasp/boot state=directory
-	- file: path=/opt/raspberrypi-rasp/root state=directory
-
-    # Mount Image
-    - command: kpartx -v -a /vagrant/image.img
-    - mount: src="/dev/mapper/loop0p1" name="/opt/raspberrypi/boot" fstype="auto" opts="loop,noauto" state="mounted"
-    - mount: src="/dev/mapper/loop0p5" name="/opt/raspberrypi/root" fstype="auto" opts="loop,noauto" state="mounted"
+	- name: Mount Raspbian Image
+		command: kpartx -v -a /vagrant/image-rasp.img
+		mount: src="/dev/mapper/loop1p1" name="/opt/raspberrypi-rasp/boot" fstype="auto" opts="loop,noauto" state="mounted"
+		mount: src="/dev/mapper/loop1p2" name="/opt/raspberrypi-rasp/root" fstype="auto" opts="loop,noauto" state="mounted"
 
     ### Raspberry Filesystem Operations
     # the pi is unbootable unless it is told not to mount the root filesystem from the card!
-    - replace: dest=/opt/raspberrypi-rasp/boot/cmdline.txt regexp="rootwait$" replace="rootwait ip={{ rasp_rpi_ip }}:{{ nfs_server_IP }}:{ nfs_server_IP }}:{{ netmask }}:rpi:eth0:off root=/dev/nfs rootfstype=nfs nfsroot={{ nfs_server_IP }}:/opt/raspberrypi/root,udp,vers=3 smsc95xx.turbo_mode=N" backup=no
-	- replace: dest=/opt/raspberrypi-arch/boot/cmdline.txt regexp="rootwait$" replace="rootwait ip={{ arch_rpi_ip }}:{{ nfs_server_IP }}:{ nfs_server_IP }}:{{ netmask }}:rpi:eth0:off root=/dev/nfs rootfstype=nfs nfsroot={{ nfs_server_IP }}:/opt/raspberrypi/root,udp,vers=3 smsc95xx.turbo_mode=N" backup=no
+    - name: Enable NFS Boot Options
+        replace: dest=/opt/raspberrypi-rasp/boot/cmdline.txt regexp="rootwait$" replace="rootwait ip={{ rasp_rpi_ip }}:{{ nfs_server_IP }}:{ nfs_server_IP }}:{{ netmask }}:rpi:eth0:off root=/dev/nfs rootfstype=nfs nfsroot={{ nfs_server_IP }}:/opt/raspberrypi/root,udp,vers=3 smsc95xx.turbo_mode=N" backup=no
+        replace: dest=/opt/raspberrypi-arch/boot/cmdline.txt regexp="rootwait$" replace="rootwait ip={{ arch_rpi_ip }}:{{ nfs_server_IP }}:{ nfs_server_IP }}:{{ netmask }}:rpi:eth0:off root=/dev/nfs rootfstype=nfs nfsroot={{ nfs_server_IP }}:/opt/raspberrypi/root,udp,vers=3 smsc95xx.turbo_mode=N" backup=no
     
     # Enable Camera Module on arch
-    - lineinfile: dest="/opt/raspberrypi-arch/boot/config.txt" line="start_file=start_x.elf"
-    - lineinfile: dest="/opt/raspberrypi-arch/boot/config.txt" line="fixup_file=fixup_x.dat"
+    - name: Enable Camera Module on ArchLinux
+        lineinfile: dest="/opt/raspberrypi-arch/boot/config.txt" line="start_file=start_x.elf"
+        lineinfile: dest="/opt/raspberrypi-arch/boot/config.txt" line="fixup_file=fixup_x.dat"
 
     # TODO: change the ip for netctl in arch
 	#- copy: src="/vagrant/eth0" dest="/opt/raspberrypi/root/etc/netctl/"
 
     # build helpies
-    - lineinfile: dest="/home/vagrant/.bashrc" line="export ARCH_RPI_TOOLS=/opt/raspberrypi-arch/tools-master"
-    - lineinfile: dest="/home/vagrant/.bashrc" line="export ARCH_RPI_ROOT=/opt/raspberrypi/root"
-	- lineinfile: dest="/home/vagrant/.bashrc" line="alias arch-make='export PKG_CONFIG_PATH=$ARCH_RPI_ROOT/usr/lib/pkgconfig; make RPI_TOOLS=$ARCH_RPI_TOOLS RPI_ROOT=$ARCH_RPI_ROOT GST_VERSION=1.0 PLATFORM_OS=Linux PLATFORM_ARCH=armv6l'"
+    - name: Set up aliases for building 
+        lineinfile: dest="/home/vagrant/.bashrc" line="export ARCH_RPI_TOOLS=/opt/raspberrypi-arch/tools-master"
+        lineinfile: dest="/home/vagrant/.bashrc" line="export ARCH_RPI_ROOT=/opt/raspberrypi/root"
+        lineinfile: dest="/home/vagrant/.bashrc" line="alias arch-make='export PKG_CONFIG_PATH=$ARCH_RPI_ROOT/usr/lib/pkgconfig; make RPI_TOOLS=$ARCH_RPI_TOOLS RPI_ROOT=$ARCH_RPI_ROOT GST_VERSION=1.0 PLATFORM_OS=Linux PLATFORM_ARCH=armv6l'"
+        lineinfile: dest="/home/vagrant/.bashrc" line="export RASP_RPI_TOOLS=/opt/raspberrypi/tools-master"
+        lineinfile: dest="/home/vagrant/.bashrc" line="export RASP_RPI_ROOT=/opt/raspberrypi/root"
+        lineinfile: dest="/home/vagrant/.bashrc" line="alias rasp-make='export PKG_CONFIG_PATH=$RASP_RPI_ROOT/usr/lib/arm-linux-gnueabihf/pkgconfig:$RASP_RPI_ROOT/usr/share/pkgconfig:$RASP_RPI_ROOT/usr/lib/pkgconfig; make RPI_TOOLS=$RASP_RPI_TOOLS RPI_ROOT=$RASP_RPI_ROOT GST_VERSION=1.0 PLATFORM_OS=Linux PLATFORM_ARCH=armv6l'"
 
-	- lineinfile: dest="/home/vagrant/.bashrc" line="export RASP_RPI_TOOLS=/opt/raspberrypi/tools-master"
-	- lineinfile: dest="/home/vagrant/.bashrc" line="export RASP_RPI_ROOT=/opt/raspberrypi/root"
-	- lineinfile: dest="/home/vagrant/.bashrc" line="alias rasp-make='export PKG_CONFIG_PATH=$RASP_RPI_ROOT/usr/lib/arm-linux-gnueabihf/pkgconfig:$RASP_RPI_ROOT/usr/share/pkgconfig:$RASP_RPI_ROOT/usr/lib/pkgconfig; make RPI_TOOLS=$RASP_RPI_TOOLS RPI_ROOT=$RASP_RPI_ROOT GST_VERSION=1.0 PLATFORM_OS=Linux PLATFORM_ARCH=armv6l'"
-
-    - apt: name=python-dev
-    - pip: name=ansible
-    - apt: name=sshpass
-    - pip: name=paramiko
-    - pip: name=PyYAML
-    - pip: name=jinja2
-    - pip: name=httplib2
+    - name: Install Additional Packages
+        apt: name=python-dev
+        pip: name=ansible
+        apt: name=sshpass
+        pip: name=paramiko
+        pip: name=PyYAML
+        pip: name=jinja2
+        pip: name=httplib2
 
 #### Downloads
 ## OF
 	- name : Download OF Master
 		get_url: url=https://github.com/openframeworks/openFrameworks/archive/master.zip dest=/opt/
+        unarchive: src=/opt/master.zip dest=/opt/ creates=/opt/openframeworks-git
+        command: chown -R vagrant /opt/openframeworks-git
+    #- name : Download Current of Stable
 ## Arch CC
 	- name : Download Archlinux Cross Compiler
-		get_url: url=http://archlinuxarm.org/builder/xtools/x-tools6h.tar.xz dest=/opt/raspberrypi-arch/
-	- unarchive: src=/opt/raspberrypi-arch/x-tools6h.tar.xz dest=/opt/raspberrypi-arch/ creates=/opt/raspberrypi-arch/tools-master
+	   get_url: url=http://archlinuxarm.org/builder/xtools/x-tools6h.tar.xz dest=/opt/raspberrypi-arch/
+	   unarchive: src=/opt/raspberrypi-arch/x-tools6h.tar.xz dest=/opt/raspberrypi-arch/ creates=/opt/raspberrypi-arch/tools-master
 ## Raspbian CC
 	- name: Download Raspbian Cross Compiler
-		get_url: url=https://github.com/raspberrypi/tools/archive/master.zip dest=/opt/raspberrypi-rasp/
-	- unarchive: src=/opt/raspberrypi-rasp/master.zip dest=/opt/raspberrypi-arch/ creates=/opt/raspberrypi-rasp/tools-master
+	   get_url: url=https://github.com/raspberrypi/tools/archive/master.zip dest=/opt/raspberrypi-rasp/
+	   unarchive: src=/opt/raspberrypi-rasp/master.zip dest=/opt/raspberrypi-arch/ creates=/opt/raspberrypi-rasp/tools-master
 
 #- unarchive: src=of_v{{ of_version }}_linuxarmv6l_release.tar.gz dest=/opt/raspberrypi/root/opt creates=/opt/raspberrypi/root/opt/of_v{{ of_version }}_linuxarmv6l_release
 #  - file: src=of_v{{ of_version }}_linuxarmv6l_release dest=/opt/raspberrypi/root/opt/openframeworks state=link
 # - file: src=/opt/raspberrypi/root/opt/openframeworks dest=/opt/openframeworks state=link
 #- command: chown -R vagrant /opt/raspberrypi/root/opt/of_v{{ of_version }}_linuxarmv6l_release
-
-    - apt: name=tinyproxy
-    - lineinfile: dest="/etc/tinyproxy.conf" line="Allow 10.0.1.0/24"
-    - service: name=tinyproxy state=restarted
+    - name: Set up the Proxy
+        apt: name=tinyproxy
+        lineinfile: dest="/etc/tinyproxy.conf" line="Allow 10.0.1.0/24"
+        service: name=tinyproxy state=restarted
 
   handlers:
+    - name: restart nfs-server
+        service: name=nfs-kernel-server state=restarted
 
