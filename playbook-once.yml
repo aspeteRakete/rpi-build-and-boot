@@ -49,11 +49,30 @@
 		mount: src="/dev/mapper/loop1p1" name="/opt/raspberrypi-rasp/boot" fstype="auto" opts="loop,noauto" state="mounted"
 		mount: src="/dev/mapper/loop1p2" name="/opt/raspberrypi-rasp/root" fstype="auto" opts="loop,noauto" state="mounted"
 
+    #### Downloads
+    ## OF
+    - name : Download OF Master
+        get_url: url=https://github.com/openframeworks/openFrameworks/archive/master.zip dest=/opt/
+        unarchive: src=/opt/master.zip dest=/opt/ creates=/opt/openframeworks-git
+        command: chown -R vagrant /opt/openframeworks-git
+    #- name : Download Current of Stable
+    ## Arch CC
+    - name : Download Archlinux Cross Compiler
+       get_url: url=http://archlinuxarm.org/builder/xtools/x-tools6h.tar.xz dest=/opt/raspberrypi-arch/
+       unarchive: src=/opt/raspberrypi-arch/x-tools6h.tar.xz dest=/opt/raspberrypi-arch/ creates=/opt/raspberrypi-arch/tools-master
+    ## Raspbian CC
+    - name: Download Raspbian Cross Compiler
+       get_url: url=https://github.com/raspberrypi/tools/archive/master.zip dest=/opt/raspberrypi-rasp/
+       unarchive: src=/opt/raspberrypi-rasp/master.zip dest=/opt/raspberrypi-arch/ creates=/opt/raspberrypi-rasp/tools-master
+
     ### Raspberry Filesystem Operations
     # the pi is unbootable unless it is told not to mount the root filesystem from the card!
     - name: Enable NFS Boot Options
         replace: dest=/opt/raspberrypi-rasp/boot/cmdline.txt regexp="rootwait$" replace="rootwait ip={{ rasp_rpi_ip }}:{{ nfs_server_IP }}:{ nfs_server_IP }}:{{ netmask }}:rpi:eth0:off root=/dev/nfs rootfstype=nfs nfsroot={{ nfs_server_IP }}:/opt/raspberrypi/root,udp,vers=3 smsc95xx.turbo_mode=N" backup=no
+        lineinfile: dest=/opt/raspberrypi-rasp/root/etc/fstab regexp="^\/dev\/mmcblk0p2" state="absent"
         replace: dest=/opt/raspberrypi-arch/boot/cmdline.txt regexp="rootwait$" replace="rootwait ip={{ arch_rpi_ip }}:{{ nfs_server_IP }}:{ nfs_server_IP }}:{{ netmask }}:rpi:eth0:off root=/dev/nfs rootfstype=nfs nfsroot={{ nfs_server_IP }}:/opt/raspberrypi/root,udp,vers=3 smsc95xx.turbo_mode=N" backup=no
+    - name: Fix Library Paths in Raspbian
+        command: /vagrant/fixQualifiedLibraryPaths.sh /opt/raspberrypi-rasp/root /opt/raspberrypi-rasp/tools-master/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian/bin/arm-linux-gnueabihf-g++
     
     # Enable Camera Module on arch
     - name: Enable Camera Module on ArchLinux
@@ -61,7 +80,8 @@
         lineinfile: dest="/opt/raspberrypi-arch/boot/config.txt" line="fixup_file=fixup_x.dat"
 
     # TODO: change the ip for netctl in arch
-	#- copy: src="/vagrant/eth0" dest="/opt/raspberrypi/root/etc/netctl/"
+    - name: Copy eth0 Config File for ArchLinux
+	   copy: src="eth0" dest="/opt/raspberrypi-arch/root/etc/netctl/"
 
     # build helpies
     - name: Set up aliases for building 
@@ -80,22 +100,6 @@
         pip: name=PyYAML
         pip: name=jinja2
         pip: name=httplib2
-
-#### Downloads
-## OF
-	- name : Download OF Master
-		get_url: url=https://github.com/openframeworks/openFrameworks/archive/master.zip dest=/opt/
-        unarchive: src=/opt/master.zip dest=/opt/ creates=/opt/openframeworks-git
-        command: chown -R vagrant /opt/openframeworks-git
-    #- name : Download Current of Stable
-## Arch CC
-	- name : Download Archlinux Cross Compiler
-	   get_url: url=http://archlinuxarm.org/builder/xtools/x-tools6h.tar.xz dest=/opt/raspberrypi-arch/
-	   unarchive: src=/opt/raspberrypi-arch/x-tools6h.tar.xz dest=/opt/raspberrypi-arch/ creates=/opt/raspberrypi-arch/tools-master
-## Raspbian CC
-	- name: Download Raspbian Cross Compiler
-	   get_url: url=https://github.com/raspberrypi/tools/archive/master.zip dest=/opt/raspberrypi-rasp/
-	   unarchive: src=/opt/raspberrypi-rasp/master.zip dest=/opt/raspberrypi-arch/ creates=/opt/raspberrypi-rasp/tools-master
 
 #- unarchive: src=of_v{{ of_version }}_linuxarmv6l_release.tar.gz dest=/opt/raspberrypi/root/opt creates=/opt/raspberrypi/root/opt/of_v{{ of_version }}_linuxarmv6l_release
 #  - file: src=of_v{{ of_version }}_linuxarmv6l_release dest=/opt/raspberrypi/root/opt/openframeworks state=link
